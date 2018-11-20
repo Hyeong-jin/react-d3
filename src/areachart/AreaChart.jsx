@@ -4,11 +4,11 @@ var React = require('react');
 var d3 = require('d3');
 var DataSeries = require('./DataSeries');
 var { Chart, XAxis, YAxis } = require('../common');
-var { CartesianChartPropsMixin, ViewBoxMixin } = require('../mixins');
+var { CartesianChartPropsMixin, DefaultAccessorsMixin, ViewBoxMixin } = require('../mixins');
 
 module.exports = React.createClass({
 
-  mixins: [ CartesianChartPropsMixin, ViewBoxMixin ],
+  mixins: [ CartesianChartPropsMixin, DefaultAccessorsMixin, ViewBoxMixin ],
 
   displayName: 'AreaChart',
 
@@ -38,10 +38,8 @@ module.exports = React.createClass({
 
     var interpolationType = props.interpolationType || (props.interpolate ? 'cardinal' : 'linear');
 
-    // Calculate inner chart dimensions
-    var innerWidth, innerHeight;
-    innerWidth = this.getOuterDimensions().width - props.margins.left - props.margins.right;
-    innerHeight = this.getOuterDimensions().height - props.margins.top - props.margins.bottom;
+    var {innerWidth, innerHeight, trans, svgMargins} = this.getDimensions();
+    var yOrient = this.getYOrient();
 
     if (!Array.isArray(data)) {
       data = [data];
@@ -54,6 +52,9 @@ module.exports = React.createClass({
     var yValues = [];
     var seriesNames = [];
     var yMaxValues = [];
+    var domain = props.domain || {};
+    var xDomain = domain.x || [];
+    var yDomain = domain.y || [];
     data.forEach( (series) => {
       var upper = 0;
       seriesNames.push(series.name);
@@ -74,8 +75,14 @@ module.exports = React.createClass({
         .range([0, innerWidth]);
     }
 
-    xScale.domain(d3.extent(xValues));
-    yScale.domain([0, d3.sum(yMaxValues)]);
+    var xdomain = d3.extent(xValues);
+    if(xDomain[0] !== undefined && xDomain[0] !== null) xdomain[0] = xDomain[0];
+    if(xDomain[1] !== undefined && xDomain[1] !== null) xdomain[1] = xDomain[1];
+    xScale.domain(xdomain);
+    var ydomain = [0, d3.sum(yMaxValues)];
+    if(yDomain[0] !== undefined && yDomain[0] !== null) ydomain[0] = yDomain[0];
+    if(yDomain[1] !== undefined && yDomain[1] !== null) ydomain[1] = yDomain[1];
+    yScale.domain(ydomain);
 
     props.colors.domain(seriesNames);
 
@@ -85,8 +92,6 @@ module.exports = React.createClass({
       .values((d)=> { return d.values; });
 
     var layers = stack(data);
-
-    var trans = `translate(${ props.margins.left },${ props.margins.top })`;
 
     var dataSeries = layers.map( (d, idx) => {
       return (
@@ -129,10 +134,11 @@ module.exports = React.createClass({
             xAxisLabelOffset={props.xAxisLabelOffset}
             tickFormatting={props.xAxisFormatter}
             xOrient={props.xOrient}
-            yOrient={props.yOrient}
-            margins={props.margins}
+            yOrient={yOrient}
+            margins={svgMargins}
             width={innerWidth}
             height={innerHeight}
+            horizontalChart={props.horizontal}
             gridVertical={props.gridVertical}
             gridVerticalStroke={props.gridVerticalStroke}
             gridVerticalStrokeWidth={props.gridVerticalStrokeWidth}
@@ -148,10 +154,11 @@ module.exports = React.createClass({
             yAxisLabelOffset={props.yAxisLabelOffset}
             tickFormatting={props.yAxisFormatter}
             xOrient={props.xOrient}
-            yOrient={props.yOrient}
-            margins={props.margins}
+            yOrient={yOrient}
+            margins={svgMargins}
             width={innerWidth}
             height={props.height}
+            horizontalChart={props.horizontal}
             gridHorizontal={props.gridHorizontal}
             gridHorizontalStroke={props.gridHorizontalStroke}
             gridHorizontalStrokeWidth={props.gridHorizontalStrokeWidth}
